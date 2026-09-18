@@ -65,6 +65,7 @@
   </footer>
 
   <script>
+    // URL вашого скрипту
     const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxvmIY2u_rt25uNpovh7bS0ooYw2H45ll-mp9ypxEi0Jlux1F41nUJ1xRItBlAeDPiC/exec";
 
     const PHOTOS_DATA = [
@@ -82,7 +83,7 @@
       { id: "12", title: "Херсонський художній музей ім. О. Шовкуненка", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/Uwj5od5jf3p5m7JW7", image: "kherson_12.jpg" }
     ];
 
-    // Інтегровані дані безпосередньо з Google Таблиці
+    // Базові збережені відповіді з вашої таблиці (гарантують наявність усіх даних)
     const EMBEDDED_RESPONSES = [
       { created_at: "18.09.2026 03:09:57", class_name: "Вчителі", first_name: "Ольга", last_name: "Герінбург", kherson_connection: "Я живу / жив у Херсоні", selected_photos: "3, 2, 4, 7, 8", own_place: "Кав'ярні \"Дон Марко\"", personal_association: "місто мого дитинства", future_choices: "🌳 Відновлені парки та зелені зони", future_other: "працюючі школи та садочки" },
       { created_at: "18.09.2026 03:26:05", class_name: "Гості", first_name: "Ельміра", last_name: "Герінбург", kherson_connection: "Мої рідні або друзі пов’язані з Херсоном", selected_photos: "8, 9, 10, 5", own_place: "Бібліотеки Чайковського", personal_association: "любов", future_choices: "", future_other: "" },
@@ -167,6 +168,47 @@
       const resps = JSON.parse(localStorage.getItem('kherson_responses_all') || '[]');
       resps.push(data);
       localStorage.setItem('kherson_responses_all', JSON.stringify(resps));
+    }
+
+    // JSONP Завантаження нових відповідей з Google Таблиці
+    function fetchRemoteResponses() {
+      return new Promise((resolve) => {
+        if (!GOOGLE_SHEET_URL || !GOOGLE_SHEET_URL.startsWith("https://script.google.com")) {
+          resolve(getAllResponses());
+          return;
+        }
+
+        const callbackName = 'googleSheetsCallback_' + Math.round(100000 * Math.random());
+        const script = document.createElement('script');
+
+        window[callbackName] = function(data) {
+          delete window[callbackName];
+          if (script.parentNode) document.body.removeChild(script);
+          if (Array.isArray(data) && data.length > 0) {
+            const currentLocal = JSON.parse(localStorage.getItem('kherson_responses_all') || '[]');
+            const merged = [...data];
+            currentLocal.forEach(loc => {
+              if (!merged.some(m => m.first_name === loc.first_name && m.last_name === loc.last_name && m.created_at === loc.created_at)) {
+                merged.push(loc);
+              }
+            });
+            localStorage.setItem('kherson_responses_all', JSON.stringify(merged));
+            resolve(merged);
+          } else {
+            resolve(getAllResponses());
+          }
+        };
+
+        script.onerror = function() {
+          delete window[callbackName];
+          if (script.parentNode) document.body.removeChild(script);
+          resolve(getAllResponses());
+        };
+
+        const delimiter = GOOGLE_SHEET_URL.includes('?') ? '&' : '?';
+        script.src = GOOGLE_SHEET_URL + delimiter + 'callback=' + callbackName;
+        document.body.appendChild(script);
+      });
     }
 
     function goHome() {
@@ -457,7 +499,7 @@
     function submitFinalResponse() {
       const payload = {
         ...studentData,
-        created_at: new Date().toISOString()
+        created_at: new Date().toLocaleString('uk-UA')
       };
 
       saveResponseLocal(payload);
@@ -507,9 +549,9 @@
       renderWelcome();
     }
 
-    function renderPublicStats(selectedScope) {
+    async function renderPublicStats(selectedScope) {
       const scope = (selectedScope || studentData.class_name || '11 ПМВ').trim();
-      const allResponses = getAllResponses();
+      const allResponses = await fetchRemoteResponses();
       const responses = scope === 'ALL' 
         ? allResponses 
         : allResponses.filter(r => (r.class_name || '').trim() === scope);
@@ -573,7 +615,7 @@
       `;
     }
 
-    function toggleTeacherPanel() {
+    async function toggleTeacherPanel() {
       const password = prompt("Введіть пароль для доступу до Панелі розробника:");
       if (password !== "0412") {
         alert("Невірний пароль!");
@@ -613,15 +655,15 @@
         </div>
       `;
 
-      populateTeacherClassFilter();
-      filterTeacherStats();
+      const responses = await fetchRemoteResponses();
+      populateTeacherClassFilter(responses);
+      filterTeacherStatsWithData(responses);
     }
 
-    function populateTeacherClassFilter() {
+    function populateTeacherClassFilter(responses) {
       const select = document.getElementById('teacher-class-filter');
       if (!select) return;
 
-      const responses = getAllResponses();
       const detectedClasses = new Set(getClassesList().map(c => c.trim()));
       
       responses.forEach(r => {
@@ -648,16 +690,20 @@
         list.push(name);
         saveClassesList(list);
       }
-      populateTeacherClassFilter();
+      fetchRemoteResponses().then(resps => populateTeacherClassFilter(resps));
       inp.value = '';
     }
 
-    function filterTeacherStats() {
+    async function filterTeacherStats() {
+      const responses = await fetchRemoteResponses();
+      filterTeacherStatsWithData(responses);
+    }
+
+    function filterTeacherStatsWithData(allResponses) {
       const filterSelect = document.getElementById('teacher-class-filter');
       const selectedClass = filterSelect ? filterSelect.value.trim() : '11 ПМВ';
       const container = document.getElementById('teacher-filtered-content');
 
-      const allResponses = getAllResponses();
       const responses = selectedClass === 'ALL' 
         ? allResponses 
         : allResponses.filter(r => (r.class_name || '').trim() === selectedClass);
