@@ -44,8 +44,11 @@
     <div class="flex-grow flex items-center justify-center p-2">
       <img id="lightbox-img" class="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl" src="" alt="">
     </div>
-    <div class="text-center text-slate-300 text-xs max-w-4xl mx-auto w-full pb-2">
+    <div class="text-center text-slate-300 text-xs max-w-4xl mx-auto w-full pb-2 flex flex-col items-center gap-1.5">
       <p id="lightbox-author"></p>
+      <a id="lightbox-source" href="" target="_blank" rel="noopener noreferrer" class="text-sky-300 hover:text-sky-200 underline font-medium flex items-center gap-1 transition">
+        📍 Переглянути на Google Maps ↗
+      </a>
     </div>
   </div>
 
@@ -347,7 +350,7 @@
                 const isSelected = studentData.selected_photos.includes(photo.id);
                 return `
                   <div class="border rounded-xl overflow-hidden bg-slate-50 flex flex-col justify-between relative group">
-                    <div class="relative cursor-pointer overflow-hidden aspect-[4/3]" onclick="openLightbox('${photo.image}', '${photo.title}', '${photo.author}')">
+                    <div class="relative cursor-pointer overflow-hidden aspect-[4/3]" onclick="openLightbox('${photo.image}', '${photo.title}', '${photo.author}', '${photo.sourceUrl}')">
                       <img src="${photo.image}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${photo.title}">
                       <span class="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">🔍 розгорнути</span>
                     </div>
@@ -548,7 +551,7 @@
       `;
     }
 
-    // --- ПАНЕЛЬ розробника ---
+    // --- ПАНЕЛЬ РОЗРОБНИКА ---
     function toggleTeacherPanel() {
       // 🔒 Простий захист паролем
       const password = prompt("Введіть пароль для доступу до Панелі розробника:");
@@ -655,10 +658,19 @@
     }
 
     // --- LIGHTBOX CONTROL ---
-    function openLightbox(src, title, author) {
+    function openLightbox(src, title, author, sourceUrl) {
       document.getElementById('lightbox-img').src = src;
       document.getElementById('lightbox-title').innerText = title;
       document.getElementById('lightbox-author').innerText = `Фото: ${author} / Google Maps`;
+      
+      const sourceLink = document.getElementById('lightbox-source');
+      if (sourceUrl) {
+        sourceLink.href = sourceUrl;
+        sourceLink.classList.remove('hidden');
+      } else {
+        sourceLink.classList.add('hidden');
+      }
+
       document.getElementById('lightbox').classList.remove('hidden');
       document.getElementById('lightbox').classList.add('flex');
     }
