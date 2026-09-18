@@ -177,50 +177,33 @@
       });
     }
 
-    // Асинхронне отримання відповідей із Google Sheet, вбудованого масиву та localStorage
+    // Асинхронне отримання актуальних відповідей із Google Sheet
+    // localStorage використовується як резерв, якщо Google Sheet недоступний
     async function getAllResponses() {
-      const local = JSON.parse(
-        localStorage.getItem('kherson_responses_all') || '[]'
-      );
+  const local = JSON.parse(
+    localStorage.getItem('kherson_responses_all') || '[]'
+  );
 
-      let remote = [];
+  try {
+    const remote = await fetchResponsesFromGoogleSheet();
 
-      try {
-        remote = await fetchResponsesFromGoogleSheet();
-        isRemoteSheetAvailable = true;
-      } catch (err) {
-        console.error("Не вдалося отримати дані з Google Sheet:", err);
-        isRemoteSheetAvailable = false;
-      }
+    isRemoteSheetAvailable = true;
 
-      const combined = [...EMBEDDED_RESPONSES];
-
-      // Спочатку додаємо відповіді з Google Sheet
-      if (Array.isArray(remote)) {
-        remote.forEach(item => {
-          if (!combined.some(c =>
-            c.first_name === item.first_name &&
-            c.last_name === item.last_name &&
-            c.created_at === item.created_at
-          )) {
-            combined.push(item);
-          }
-        });
-      }
-
-      // Потім додаємо локальні відповіді, яких ще немає серед віддалених
-      local.forEach(item => {
-        if (!combined.some(c =>
-          c.first_name === item.first_name &&
-          c.last_name === item.last_name &&
-          c.created_at === item.created_at
-        )) {
-          combined.push(item);
-        }
-      });
-
-      return combined;
+    // Google Sheet — головне джерело актуальних відповідей
+    if (Array.isArray(remote)) {
+      return remote;
     }
+
+    return local;
+
+  } catch (err) {
+    console.error("Не вдалося отримати дані з Google Sheet:", err);
+    isRemoteSheetAvailable = false;
+
+    // Якщо Google Sheet недоступний — використовуємо локальну копію
+    return local;
+  }
+}
 
     function saveResponseLocal(data) {
       const resps = JSON.parse(localStorage.getItem('kherson_responses_all') || '[]');
