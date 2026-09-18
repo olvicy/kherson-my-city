@@ -95,6 +95,8 @@
       { created_at: "18.09.2026 12:29:38", class_name: "11 ПМВ", first_name: "Сергій", last_name: "Циганко", kherson_connection: "Я живу / жив у Херсоні", selected_photos: "1, 4, 2, 8, 12", own_place: "", personal_association: "", future_choices: "🌳 Відновлені парки та зелені зони", future_other: "" }
     ];
 
+    let isRemoteSheetAvailable = true;
+
     function getClassesList() {
       const defaultClasses = [
         "11 ІМЕ", "11 ІНФ", "11 МПЖ", "11 ПМВ",
@@ -152,15 +154,71 @@
       studentData = draftState.data;
     }
 
-    // Злиття локальних нових відповідей із базою даних
-    function getAllResponses() {
-      const local = JSON.parse(localStorage.getItem('kherson_responses_all') || '[]');
+    // JSONP запит до Google Apps Script
+    function fetchResponsesFromGoogleSheet() {
+      return new Promise((resolve, reject) => {
+        const callbackName = 'googleSheetCallback_' + Date.now();
+
+        window[callbackName] = function(data) {
+          delete window[callbackName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          resolve(Array.isArray(data) ? data : []);
+        };
+
+        const script = document.createElement('script');
+        script.src = GOOGLE_SHEET_URL + '?callback=' + encodeURIComponent(callbackName);
+        script.onerror = function() {
+          delete window[callbackName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+          reject(new Error('Не вдалося отримати дані з Google Sheet'));
+        };
+
+        document.body.appendChild(script);
+      });
+    }
+
+    // Асинхронне отримання відповідей із Google Sheet, вбудованого масиву та localStorage
+    async function getAllResponses() {
+      const local = JSON.parse(
+        localStorage.getItem('kherson_responses_all') || '[]'
+      );
+
+      let remote = [];
+
+      try {
+        remote = await fetchResponsesFromGoogleSheet();
+        isRemoteSheetAvailable = true;
+      } catch (err) {
+        console.error("Не вдалося отримати дані з Google Sheet:", err);
+        isRemoteSheetAvailable = false;
+      }
+
       const combined = [...EMBEDDED_RESPONSES];
-      local.forEach(loc => {
-        if (!combined.some(c => c.first_name === loc.first_name && c.last_name === loc.last_name && c.created_at === loc.created_at)) {
-          combined.push(loc);
+
+      // Спочатку додаємо відповіді з Google Sheet
+      if (Array.isArray(remote)) {
+        remote.forEach(item => {
+          if (!combined.some(c =>
+            c.first_name === item.first_name &&
+            c.last_name === item.last_name &&
+            c.created_at === item.created_at
+          )) {
+            combined.push(item);
+          }
+        });
+      }
+
+      // Потім додаємо локальні відповіді, яких ще немає серед віддалених
+      local.forEach(item => {
+        if (!combined.some(c =>
+          c.first_name === item.first_name &&
+          c.last_name === item.last_name &&
+          c.created_at === item.created_at
+        )) {
+          combined.push(item);
         }
       });
+
       return combined;
     }
 
@@ -467,11 +525,17 @@
         fetch(GOOGLE_SHEET_URL, {
           method: "POST",
           mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
           body: JSON.stringify(payload)
         })
-        .then(() => console.log("Дані відправлено"))
-        .catch(err => console.log("Помилка відправки:", err));
+        .then(() => {
+          console.log("Дані відправлено до Google Apps Script");
+        })
+        .catch(err => {
+          console.error("Помилка відправки:", err);
+        });
       }
 
       currentStep = 4;
@@ -508,13 +572,29 @@
       renderWelcome();
     }
 
-    function renderPublicStats(selectedScope) {
+    async function renderPublicStats(selectedScope) {
+      const content = document.getElementById('app-content');
+      
+      content.innerHTML = `
+        <div class="bg-white p-6 md:p-8 rounded-2xl border border-amber-200 space-y-6 shadow-sm">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h2 class="text-2xl font-extrabold text-slate-800">📊 Статистика відповідей</h2>
+              <p class="text-xs text-slate-500">Завантаження актуальних даних...</p>
+            </div>
+            <button onclick="renderThankYou()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold">
+              ← Назад
+            </button>
+          </div>
+          <p class="text-xs text-slate-500 py-4 text-center">⏳ Завантаження актуальних відповідей…</p>
+        </div>
+      `;
+
       const scope = (selectedScope || studentData.class_name || '11 ПМВ').trim();
-      const allResponses = getAllResponses();
+      const allResponses = await getAllResponses();
       const responses = scope === 'ALL' 
         ? allResponses 
         : allResponses.filter(r => (r.class_name || '').trim() === scope);
-      const content = document.getElementById('app-content');
 
       const photoCounts = {};
       PHOTOS_DATA.forEach(p => photoCounts[p.id] = 0);
@@ -542,6 +622,12 @@
               ← Назад
             </button>
           </div>
+
+          ${!isRemoteSheetAvailable ? `
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+              ⚠️ Google Таблиця тимчасово недоступна. Показано локальні та вбудовані відповіді.
+            </div>
+          ` : ''}
 
           <div class="space-y-2">
             <label class="block text-xs font-bold text-slate-600 uppercase">Оберіть спільноту / клас:</label>
@@ -574,7 +660,7 @@
       `;
     }
 
-    function toggleTeacherPanel() {
+    async function toggleTeacherPanel() {
       const password = prompt("Введіть пароль для доступу до Панелі розробника:");
       if (password !== "0412") {
         alert("Невірний пароль!");
@@ -610,11 +696,24 @@
             </select>
           </div>
 
-          <div id="teacher-filtered-content"></div>
+          <div id="teacher-filtered-content">
+            <p class="text-xs text-slate-500 py-4 text-center">⏳ Завантаження актуальних відповідей…</p>
+          </div>
         </div>
       `;
 
-      const responses = getAllResponses();
+      const responses = await getAllResponses();
+      
+      if (!isRemoteSheetAvailable) {
+        const filterContainer = document.getElementById('teacher-filtered-content');
+        if (filterContainer) {
+          const warningDiv = document.createElement('div');
+          warningDiv.className = "mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800";
+          warningDiv.innerText = "⚠️ Google Таблиця тимчасово недоступна. Показано локальні та вбудовані відповіді.";
+          filterContainer.parentNode.insertBefore(warningDiv, filterContainer);
+        }
+      }
+
       populateTeacherClassFilter(responses);
       filterTeacherStatsWithData(responses);
     }
@@ -640,7 +739,7 @@
       `;
     }
 
-    function addNewClass() {
+    async function addNewClass() {
       const inp = document.getElementById('new-class-name');
       if (!inp || !inp.value.trim()) return alert('Введіть назву спільноти!');
       const name = inp.value.trim();
@@ -649,12 +748,14 @@
         list.push(name);
         saveClassesList(list);
       }
-      populateTeacherClassFilter(getAllResponses());
+      const responses = await getAllResponses();
+      populateTeacherClassFilter(responses);
       inp.value = '';
     }
 
-    function filterTeacherStats() {
-      filterTeacherStatsWithData(getAllResponses());
+    async function filterTeacherStats() {
+      const responses = await getAllResponses();
+      filterTeacherStatsWithData(responses);
     }
 
     function filterTeacherStatsWithData(allResponses) {
