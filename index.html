@@ -583,12 +583,23 @@
       PHOTOS_DATA.forEach(p => photoCounts[p.id] = 0);
       responses.forEach(r => {
         let photos = r.selected_photos || [];
+
         if (typeof photos === 'string') {
-          photos = photos.split(',').map(s => s.trim());
+          photos = photos
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
+        } else if (typeof photos === 'number') {
+          photos = [String(photos)];
+        } else if (!Array.isArray(photos)) {
+          photos = [];
         }
+
         photos.forEach(pid => {
           const cleanId = String(pid).trim();
-          if (photoCounts[cleanId] !== undefined) photoCounts[cleanId]++;
+          if (photoCounts[cleanId] !== undefined) {
+            photoCounts[cleanId]++;
+          }
         });
       });
 
@@ -608,7 +619,7 @@
 
           ${!isRemoteSheetAvailable ? `
             <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
-              ⚠️ Google Таблиця тимчасово недоступна. Показано локальні та вбудовані відповіді.
+              ⚠️ Google Таблиця тимчасово недоступна. Показано локальні відповіді.
             </div>
           ` : ''}
 
