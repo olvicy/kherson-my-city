@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мій Херсон. Місто наших сердець 💙💛</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .sticky-header { position: sticky; top: 0; z-index: 40; }
+    .sticky-footer { position: sticky; bottom: 0; z-index: 40; }
+  </style>
+</head>
+<body class="bg-amber-50/40 text-slate-800 min-h-screen flex flex-col justify-between">
+
+  <!-- HEADER -->
+  <header class="sticky-header bg-white/95 backdrop-blur border-b border-amber-200 shadow-sm px-4 py-4">
+    <div class="max-w-4xl mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
+        <span class="text-3xl md:text-4xl">💙💛</span>
+        <div>
+          <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Мій Херсон</h1>
+          <p id="header-subtitle" class="text-xs md:text-sm font-semibold text-sky-600">Місто наших сердець</p>
+        </div>
+      </div>
+      <button onclick="toggleTeacherPanel()" class="text-xs bg-sky-100 hover:bg-sky-200 text-sky-800 px-3 py-2 rounded-full font-semibold transition">
+        🔒 Панель розробника
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="max-w-3xl mx-auto w-full p-4 md:p-6 flex-grow">
+    <div id="app-content"></div>
+  </main>
+
+  <!-- FULLSCREEN LIGHTBOX -->
+  <div id="lightbox" class="fixed inset-0 bg-black/90 z-50 hidden flex-col justify-between p-4" onclick="closeLightbox(event)">
+    <div class="flex justify-between items-center text-white max-w-4xl mx-auto w-full">
+      <h3 id="lightbox-title" class="text-base md:text-lg font-semibold"></h3>
+      <button onclick="closeLightboxDirect()" class="text-white text-3xl hover:text-amber-300">&times;</button>
+    </div>
+    <div class="flex-grow flex items-center justify-center p-2">
+      <img id="lightbox-img" class="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl" src="" alt="">
+    </div>
+    <div class="text-center text-slate-300 text-xs max-w-4xl mx-auto w-full pb-2">
+      <p id="lightbox-author"></p>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="sticky-footer bg-white/95 backdrop-blur border-t border-amber-200 py-3 shadow-md">
+    <div class="max-w-4xl mx-auto px-4 text-center text-xs text-slate-600 space-y-1">
+      <p class="font-medium">
+        Місто наших сердець • Фотографії Херсона: <strong>Alexandr Kornyakov</strong> (Google Maps).
+      </p>
+      <div class="font-semibold text-sky-700">
+        Створено Ольгою Герінбург
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // 🔗 URL Google Apps Script
+    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbzRzJntm0c06SmKoYQn6D8hiQQITV8sa7Tx5-IAytGgfVR7ZCZCP2gtETDp5WWKH3k7/exec";
+
+    // --- 12 ФОТОГРАФІЙ ---
+    const PHOTOS_DATA = [
+      { id: "1", title: "Херсонська обласна державна адміністрація", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/cXV6UzC5ZAsNarCK8", image: "kherson_1.jpg" },
+      { id: "2", title: "Набережна Дніпра", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/hAiwKiPd62jkXPC87", image: "kherson_2.jpg" },
+      { id: "3", title: "Парк Слави", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/nk7FNcK8rzBPzLsWA", image: "kherson_3.jpg" },
+      { id: "4", title: "Північна брама херсонської фортеці", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/6aATtnXzSsmUdSBQA", image: "kherson_4.jpg" },
+      { id: "5", title: "Антонівський міст", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/ctWzgysvourYJnfg8", image: "kherson_5.jpg" },
+      { id: "6", title: "Залізничний вокзал, Центральний вхід", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/YVfmcJ3JsozeH8pF6", image: "kherson_6.jpg" },
+      { id: "7", title: "Херсонський академічний ліцей", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/m3sgyzZ6nbxT2aNy9", image: "kherson_7.jpg" },
+      { id: "8", title: "Херсонський обласний драматичний театр ім. М. Куліша", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/n9iQeEKB3F1bkSn27", image: "kherson_8.jpg" },
+      { id: "9", title: "Шевченківський парк, атракціони", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/LGjMDYtwcVH5ECrd6", image: "kherson_9.jpg" },
+      { id: "10", title: "Фонтани на бульварі Мирному", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/eQCjwgXPjVmjZGKB9", image: "kherson_10.jpg" },
+      { id: "11", title: "Центральний РАЦС", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/7PVC8wQkkFjnYs1dA", image: "kherson_11.jpg" },
+      { id: "12", title: "Херсонський художній музей ім. О. Шовкуненка", author: "Alexandr Kornyakov", sourceUrl: "https://maps.app.goo.gl/Uwj5od5jf3p5m7JW7", image: "kherson_12.jpg" }
+    ];
+
+    function getClassesList() {
+      const defaultClasses = [
+        "11 ІМЕ", "11 ІНФ", "11 МПЖ", "11 ПМВ",
+        "10 ІКТ", "10 ІНФ", "10 ІОТ", "10 МІБ", "10 МПН", "10 ПМВ", "10 УІФ", "10 УКН",
+        "Вчителі", "Гості"
+      ];
+      const saved = localStorage.getItem('kherson_classes_list');
+      if (!saved) {
+        localStorage.setItem('kherson_classes_list', JSON.stringify(defaultClasses));
+        return defaultClasses;
+      }
+      return JSON.parse(saved);
+    }
+
+    // --- ЗБЕРЕЖЕННЯ ЧЕРНЕТКИ ПРИ ОНОВЛЕННІ (SESSION STORAGE) ---
+    function loadDraftState() {
+      const saved = sessionStorage.getItem('kherson_interactive_draft');
+      if (saved) {
+        try { return JSON.parse(saved); } catch(e){}
+      }
+      return {
+        step: 0,
+        data: {
+          class_name: "",
+          first_name: "",
+          last_name: "",
+          kherson_connection: "Я живу / жив у Херсоні",
+          selected_photos: [],
+          own_place: "",
+          personal_association: "",
+          future_choices: [],
+          future_other: ""
+        }
+      };
+    }
+
+    let draftState = loadDraftState();
+    let currentStep = draftState.step;
+    let studentData = draftState.data;
+
+    function saveDraftState() {
+      sessionStorage.setItem('kherson_interactive_draft', JSON.stringify({
+        step: currentStep,
+        data: studentData
+      }));
+    }
+
+    function clearDraftState() {
+      sessionStorage.removeItem('kherson_interactive_draft');
+      draftState = loadDraftState();
+      currentStep = 0;
+      studentData = draftState.data;
+    }
+
+    // LOCAL STORAGE
+    function getResponses() {
+      return JSON.parse(localStorage.getItem('kherson_responses_all') || '[]');
+    }
+    function saveResponseLocal(data) {
+      const resps = getResponses();
+      resps.push(data);
+      localStorage.setItem('kherson_responses_all', JSON.stringify(resps));
+    }
+
+    function goHome() {
+      if (currentStep > 0 && currentStep <= 3) {
+        renderStep(currentStep);
+      } else {
+        currentStep = 0;
+        saveDraftState();
+        renderWelcome();
+      }
+    }
+
+    // --- 1. ПРИВІТАЛЬНИЙ ЕКРАН ---
+    function renderWelcome() {
+      const classList = getClassesList();
+      const content = document.getElementById('app-content');
+      document.getElementById('header-subtitle').innerText = `Місто наших сердець`;
+      
+      content.innerHTML = `
+        <div class="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-amber-200 text-center space-y-6">
+          <div class="inline-block bg-sky-100 p-4 rounded-full text-4xl">💙💛</div>
+          <div>
+            <h2 class="text-3xl font-extrabold text-slate-800">Ласкаво просимо!</h2>
+            <p class="text-sky-600 font-bold mt-1 text-lg">Зберімо разом Херсон,<br>який живе в наших спогадах і мріях.</p>
+          </div>
+          <p class="text-slate-600 leading-relaxed text-sm">
+            У кожного з нас — свій Херсон.<br>
+            Поділися місцем, спогадом або мрією про нього.
+          </p>
+
+          <div class="pt-4 border-t border-slate-100 text-left space-y-2">
+            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">Обери свою спільноту / клас:</label>
+            <select id="welcome-class-select" class="w-full p-3 border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sky-400 outline-none bg-slate-50">
+              ${classList.map(cls => `<option value="${cls}" ${cls === studentData.class_name ? 'selected' : ''}>${cls}</option>`).join('')}
+            </select>
+          </div>
+
+          <button onclick="startStudentFlow()" class="w-full bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold py-3.5 px-6 rounded-xl transition shadow hover:shadow-md text-base">
+            Розпочати →
+          </button>
+        </div>
+      `;
+    }
+
+    function startStudentFlow() {
+      const sel = document.getElementById('welcome-class-select');
+      if (sel) {
+        studentData.class_name = sel.value;
+        document.getElementById('header-subtitle').innerText = `Місто наших сердець • ${studentData.class_name}`;
+      }
+      renderStep(1);
+    }
+
+    // --- МЕНЕДЖЕР СТОРІНОК ---
+    function renderStep(step) {
+      currentStep = step;
+      saveDraftState();
+      const content = document.getElementById('app-content');
+      document.getElementById('header-subtitle').innerText = `Місто наших сердець • ${studentData.class_name}`;
+
+      let pageTitle = "";
+      if (step === 1) pageTitle = `Сторінка 1/3 (${studentData.class_name}): Знайомство`;
+      if (step === 2) pageTitle = `Сторінка 2/3 (${studentData.class_name}): Галерея фото`;
+      if (step === 3) pageTitle = `Сторінка 3/3 (${studentData.class_name}): Спогади та мрії`;
+
+      content.innerHTML = `
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-amber-200 space-y-6">
+          <div class="flex justify-between items-center border-b pb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-sky-600">${pageTitle}</span>
+            <div class="flex gap-1.5">
+              <span class="w-3 h-3 rounded-full ${step === 1 ? 'bg-sky-500' : 'bg-slate-200'}"></span>
+              <span class="w-3 h-3 rounded-full ${step === 2 ? 'bg-sky-500' : 'bg-slate-200'}"></span>
+              <span class="w-3 h-3 rounded-full ${step === 3 ? 'bg-sky-500' : 'bg-slate-200'}"></span>
+            </div>
+          </div>
+
+          <div id="step-content"></div>
+
+          <div class="flex justify-between items-center pt-6 border-t border-slate-100">
+            ${step > 1 ? `
+              <button onclick="saveCurrentStepData(); renderStep(${step - 1});" class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-5 rounded-xl transition text-sm">
+                ← Назад
+              </button>
+            ` : '<div></div>'}
+
+            ${step < 3 ? `
+              <button onclick="if(validateStep(${step})) { saveCurrentStepData(); renderStep(${step + 1}); }" class="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold py-2.5 px-6 rounded-xl transition text-sm shadow">
+                Вперед →
+              </button>
+            ` : `
+              <button onclick="if(validateStep(3)) { saveCurrentStepData(); submitFinalResponse(); }" class="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 px-6 rounded-xl transition text-sm shadow">
+                Завершити та надіслати ❤️
+              </button>
+            `}
+          </div>
+        </div>
+      `;
+
+      if (step === 1) renderPage1();
+      if (step === 2) renderPage2();
+      if (step === 3) renderPage3();
+    }
+
+    function saveCurrentStepData() {
+      if (currentStep === 1) {
+        const fn = document.getElementById('first_name');
+        const ln = document.getElementById('last_name');
+        if (fn) studentData.first_name = fn.value.trim();
+        if (ln) studentData.last_name = ln.value.trim();
+        const conn = document.querySelector('input[name="kherson_connection"]:checked');
+        if (conn) studentData.kherson_connection = conn.value;
+      }
+      if (currentStep === 2) {
+        const op = document.getElementById('own_place');
+        if (op) studentData.own_place = op.value.trim();
+      }
+      if (currentStep === 3) {
+        const pa = document.getElementById('personal_association');
+        if (pa) studentData.personal_association = pa.value.trim();
+        const fo = document.getElementById('future_other');
+        if (fo) studentData.future_other = fo.value.trim();
+        const fc = document.querySelectorAll('input[name="future_choices"]:checked');
+        studentData.future_choices = Array.from(fc).map(c => c.value);
+      }
+      saveDraftState();
+    }
+
+    function validateStep(step) {
+      saveCurrentStepData();
+      if (step === 1) {
+        if (!studentData.first_name || !studentData.last_name) {
+          alert("Будь ласка, вкажіть ваше ім'я та прізвище.");
+          return false;
+        }
+      }
+      if (step === 2) {
+        if (studentData.selected_photos.length === 0) {
+          alert("Будь ласка, оберіть хоча б 1 фотографію (від 1 до 5).");
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // --- СТОРІНКА 1 ---
+    function renderPage1() {
+      const container = document.getElementById('step-content');
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div class="space-y-3">
+            <h3 class="text-lg font-bold text-slate-800">1. Спочатку познайомимося 😊</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Ім’я *</label>
+                <input id="first_name" type="text" value="${studentData.first_name}" class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-sky-400" placeholder="Ваше ім’я">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Прізвище *</label>
+                <input id="last_name" type="text" value="${studentData.last_name}" class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-sky-400" placeholder="Ваше прізвище">
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3 pt-4 border-t border-slate-100">
+            <h3 class="text-lg font-bold text-slate-800">2. А який він — твій Херсон?</h3>
+            <p class="text-xs text-slate-500">Обери варіант, який найбільше про тебе.</p>
+            <div class="space-y-2 text-sm">
+              ${[
+                'Я живу / жив у Херсоні',
+                'Я бував / бувала в Херсоні',
+                'Мої рідні або друзі пов’язані з Херсоном',
+                'Я знаю Херсон переважно з фотографій, відео та розповідей',
+                'Я ще не був / не була в Херсоні, але хочу його побачити'
+              ].map(opt => `
+                <label class="flex items-center gap-3 p-3 border rounded-xl hover:bg-amber-50/50 cursor-pointer transition">
+                  <input type="radio" name="kherson_connection" value="${opt}" ${studentData.kherson_connection === opt ? 'checked' : ''} class="text-sky-500 focus:ring-sky-400">
+                  <span class="text-slate-700">${opt}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // --- СТОРІНКА 2 ---
+    function renderPage2() {
+      const container = document.getElementById('step-content');
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div class="space-y-3">
+            <div class="flex justify-between items-end border-b pb-2">
+              <div>
+                <h3 class="text-lg font-bold text-slate-800">3. Який Херсон ти впізнаєш серцем?</h3>
+                <p class="text-xs text-slate-500">Обери від 1 до 5 фотографій, які для тебе найбільше про Херсон.</p>
+              </div>
+              <span id="photo-counter" class="text-xs font-bold bg-amber-100 text-amber-900 px-3 py-1 rounded-full">Обрано: ${studentData.selected_photos.length} / 5</span>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+              ${PHOTOS_DATA.map(photo => {
+                const isSelected = studentData.selected_photos.includes(photo.id);
+                return `
+                  <div class="border rounded-xl overflow-hidden bg-slate-50 flex flex-col justify-between relative group">
+                    <div class="relative cursor-pointer overflow-hidden aspect-[4/3]" onclick="openLightbox('${photo.image}', '${photo.title}', '${photo.author}')">
+                      <img src="${photo.image}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${photo.title}">
+                      <span class="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">🔍 розгорнути</span>
+                    </div>
+                    <div class="p-2 flex flex-col justify-between flex-grow">
+                      <p class="text-xs font-medium text-slate-700 line-clamp-2 mb-2" title="${photo.title}">${photo.title}</p>
+                      <button id="btn-photo-${photo.id}" onclick="togglePhoto('${photo.id}')" class="w-full text-xs py-1.5 px-2 rounded-lg font-semibold transition flex items-center justify-center gap-1 ${isSelected ? 'bg-rose-500 text-white shadow-sm' : 'border border-slate-200 hover:bg-slate-100'}">
+                        <span>❤️</span> <span id="label-photo-${photo.id}">${isSelected ? 'Обрано' : 'Обрати'}</span>
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-4 border-t border-slate-100">
+            <h3 class="text-lg font-bold text-slate-800">4. А якого місця тут не вистачає? 📍</h3>
+            <p class="text-xs text-slate-500">Якби ти міг / могла додати до нашої добірки ще одне місце Херсона — що б це було?</p>
+            <input id="own_place" type="text" value="${studentData.own_place}" placeholder="Напиши назву місця…" class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-sky-400">
+          </div>
+        </div>
+      `;
+    }
+
+    function togglePhoto(id) {
+      const idx = studentData.selected_photos.indexOf(id);
+      if (idx > -1) {
+        studentData.selected_photos.splice(idx, 1);
+      } else {
+        if (studentData.selected_photos.length >= 5) {
+          alert('Можна обрати максимум 5 фотографій');
+          return;
+        }
+        studentData.selected_photos.push(id);
+      }
+      saveDraftState();
+      document.getElementById('photo-counter').innerText = `Обрано: ${studentData.selected_photos.length} / 5`;
+      PHOTOS_DATA.forEach(p => {
+        const btn = document.getElementById(`btn-photo-${p.id}`);
+        const label = document.getElementById(`label-photo-${p.id}`);
+        if (btn && label) {
+          if (studentData.selected_photos.includes(p.id)) {
+            btn.className = "w-full text-xs py-1.5 px-2 rounded-lg font-semibold bg-rose-500 text-white transition flex items-center justify-center gap-1 shadow-sm";
+            label.innerText = "Обрано";
+          } else {
+            btn.className = "w-full text-xs py-1.5 px-2 rounded-lg font-semibold border border-slate-200 hover:bg-slate-100 transition flex items-center justify-center gap-1";
+            label.innerText = "Обрати";
+          }
+        }
+      });
+    }
+
+    // --- СТОРІНКА 3 ---
+    function renderPage3() {
+      const container = document.getElementById('step-content');
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div class="space-y-2">
+            <h3 class="text-lg font-bold text-slate-800">5. Для мене Херсон — це…</h3>
+            <p class="text-xs text-slate-500">Одна-дві фрази. Перше, що спадає на думку.</p>
+            <textarea id="personal_association" rows="3" placeholder="Напиши свої думки..." class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-sky-400">${studentData.personal_association}</textarea>
+          </div>
+
+          <div class="space-y-3 pt-4 border-t border-slate-100">
+            <h3 class="text-lg font-bold text-slate-800">6. Що ти найбільше хочеш побачити в Херсоні в майбутньому?</h3>
+            <p class="text-xs text-slate-500">Можна обрати кілька варіантів.</p>
+            <div class="space-y-2 text-sm">
+              ${[
+                '🌳 Відновлені парки та зелені зони',
+                '🌊 Набережну Дніпра',
+                '🎭 Театри, музеї та культурні простори',
+                '⚽ Спортивні майданчики',
+                '🎨 Молодіжні та творчі простори',
+                '🏘️ Затишні вулиці й площі'
+              ].map(item => `
+                <label class="flex items-center gap-3 p-2.5 border rounded-xl hover:bg-amber-50/50 cursor-pointer">
+                  <input type="checkbox" name="future_choices" value="${item}" ${studentData.future_choices.includes(item) ? 'checked' : ''} class="rounded text-sky-500 focus:ring-sky-400">
+                  <span class="text-slate-700">${item}</span>
+                </label>
+              `).join('')}
+            </div>
+            <input id="future_other" type="text" value="${studentData.future_other}" placeholder="Інше (свій варіант)..." class="w-full p-3 border rounded-xl text-sm outline-none focus:ring-2 focus:ring-sky-400 mt-2">
+          </div>
+        </div>
+      `;
+    }
+
+    // --- НАДСИЛАННЯ ВІДПОВІДІ ---
+    function submitFinalResponse() {
+      const payload = {
+        ...studentData,
+        created_at: new Date().toISOString()
+      };
+
+      saveResponseLocal(payload);
+
+      if (GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.startsWith("https://script.google.com")) {
+        fetch(GOOGLE_SHEET_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
+        .then(() => console.log("Дані успішно відправлено в Google Таблицю!"))
+        .catch(err => console.log("Помилка відправки в Google Таблицю:", err));
+      }
+
+      currentStep = 4;
+      saveDraftState();
+      renderThankYou();
+    }
+
+    // --- ФІНАЛЬНИЙ ЕКРАН ТА ПЕРЕГЛЯД СТАТИСТИКИ ДЛЯ УЧАСНИКА ---
+    function renderThankYou() {
+      const content = document.getElementById('app-content');
+      content.innerHTML = `
+        <div class="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-amber-200 text-center space-y-6">
+          <div class="text-5xl">❤️</div>
+          <h2 class="text-3xl font-extrabold text-slate-800">Дякую!</h2>
+          <p class="text-sky-600 font-bold text-lg">Тепер у нашої спільноти (${studentData.class_name})<br>є свій маленький Херсон.</p>
+          <p class="text-slate-600 text-sm leading-relaxed">
+            Херсон — це не лише місця на карті.<br>
+            Це місця, які ми пам’ятаємо, любимо і хочемо побачити знову.
+          </p>
+
+          <div class="pt-4 border-t flex flex-col gap-3">
+            <button onclick="renderPublicStats()" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-5 rounded-xl transition shadow text-sm">
+              📊 Переглянути статистику спільноти
+            </button>
+            <button onclick="restartInteractive()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-5 rounded-xl transition text-sm">
+              🔄 Пройти ще раз
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function restartInteractive() {
+      clearDraftState();
+      renderWelcome();
+    }
+
+    // --- ПУБЛІЧНИЙ ПЕРЕГЛЯД СТАТИСТИКИ ДЛЯ РЕСПОНДЕНТА ---
+    function renderPublicStats(selectedScope) {
+      const scope = selectedScope || studentData.class_name;
+      const allResponses = getResponses();
+      const responses = scope === 'ALL' ? allResponses : allResponses.filter(r => r.class_name === scope);
+      const content = document.getElementById('app-content');
+
+      const photoCounts = {};
+      PHOTOS_DATA.forEach(p => photoCounts[p.id] = 0);
+      responses.forEach(r => {
+        (r.selected_photos || []).forEach(pid => photoCounts[pid] = (photoCounts[pid] || 0) + 1);
+      });
+
+      const classList = getClassesList();
+
+      content.innerHTML = `
+        <div class="bg-white p-6 md:p-8 rounded-2xl border border-amber-200 space-y-6 shadow-sm">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h2 class="text-2xl font-extrabold text-slate-800">📊 Статистика відповідей</h2>
+              <p class="text-xs text-slate-500">Усього відповідей в обраній категорії: ${responses.length}</p>
+            </div>
+            <button onclick="renderThankYou()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold">
+              ← Назад
+            </button>
+          </div>
+
+          <div class="space-y-2">
+            <label class="block text-xs font-bold text-slate-600 uppercase">Оберіть спільноту / клас:</label>
+            <select onchange="renderPublicStats(this.value)" class="w-full p-2.5 border rounded-xl text-xs font-semibold bg-slate-50 outline-none">
+              <option value="${studentData.class_name}" ${scope === studentData.class_name ? 'selected' : ''}>Моя спільнота (${studentData.class_name})</option>
+              <option value="ALL" ${scope === 'ALL' ? 'selected' : ''}>🌍 Загальна статистика (усі респонденти)</option>
+              ${classList.filter(c => c !== studentData.class_name).map(c => `<option value="${c}" ${scope === c ? 'selected' : ''}>${c}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="space-y-3 pt-2">
+            <h4 class="font-bold text-slate-700 text-xs uppercase">❤️ Рейтинг фотографій:</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              ${PHOTOS_DATA.map(p => `
+                <div class="border rounded-xl p-2 bg-slate-50 text-xs text-center space-y-1">
+                  <img src="${p.image}" class="w-full h-20 object-cover rounded-lg" alt="">
+                  <p class="font-medium text-slate-700 truncate">${p.title}</p>
+                  <p class="font-bold text-rose-500 text-sm">❤️ ${photoCounts[p.id] || 0}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="pt-4 text-center border-t">
+            <button onclick="restartInteractive()" class="bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold py-2.5 px-6 rounded-xl text-xs transition">
+              🔄 Пройти ще раз
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // --- ПАНЕЛЬ розробника ---
+    function toggleTeacherPanel() {
+      // 🔒 Простий захист паролем
+      const password = prompt("Введіть пароль для доступу до Панелі розробника:");
+      if (password !== "0412") {
+        alert("Невірний пароль!");
+        return;
+      }
+
+      const classList = getClassesList();
+      const content = document.getElementById('app-content');
+
+      content.innerHTML = `
+        <div class="bg-white p-6 md:p-8 rounded-2xl border border-amber-200 space-y-6 shadow-sm">
+          <div class="flex justify-between items-center border-b pb-4">
+            <div>
+              <h2 class="text-2xl font-extrabold text-slate-800">🔒 Панель вчителя</h2>
+              <p class="text-xs text-slate-500">Управління спільнотами та відповідями</p>
+            </div>
+            <button onclick="goHome()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold">
+              Закрити
+            </button>
+          </div>
+
+          <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-2">
+            <h4 class="font-bold text-slate-700 text-xs uppercase">Додати нову спільноту / клас:</h4>
+            <div class="flex gap-2">
+              <input id="new-class-name" type="text" placeholder="Наприклад: 8-Б клас" class="p-2 text-xs border rounded-lg flex-grow outline-none focus:ring-1 focus:ring-sky-400">
+              <button onclick="addNewClass()" class="bg-sky-500 hover:bg-sky-600 text-white font-bold px-4 py-2 rounded-lg text-xs transition">
+                + Додати
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <label class="block text-xs font-bold text-slate-600 uppercase">Оберіть спільноту для аналізу:</label>
+            <select id="teacher-class-filter" onchange="filterTeacherStats()" class="w-full p-2.5 border rounded-xl text-xs font-semibold bg-slate-50 outline-none">
+              <option value="ALL">🌍 Усі спільноти разом (Загальна статистика)</option>
+              ${classList.map(cls => `<option value="${cls}">${cls}</option>`).join('')}
+            </select>
+          </div>
+
+          <div id="teacher-filtered-content"></div>
+        </div>
+      `;
+
+      filterTeacherStats();
+    }
+
+    function addNewClass() {
+      const inp = document.getElementById('new-class-name');
+      if (!inp || !inp.value.trim()) return alert('Введіть назву спільноти!');
+      const name = inp.value.trim();
+      const list = getClassesList();
+      if (!list.includes(name)) {
+        list.push(name);
+        saveClassesList(list);
+      }
+      toggleTeacherPanel();
+    }
+
+    function filterTeacherStats() {
+      const selectedClass = document.getElementById('teacher-class-filter').value;
+      const allResponses = getResponses();
+      const responses = selectedClass === 'ALL' ? allResponses : allResponses.filter(r => r.class_name === selectedClass);
+      const container = document.getElementById('teacher-filtered-content');
+
+      const photoCounts = {};
+      PHOTOS_DATA.forEach(p => photoCounts[p.id] = 0);
+      responses.forEach(r => {
+        (r.selected_photos || []).forEach(pid => photoCounts[pid] = (photoCounts[pid] || 0) + 1);
+      });
+
+      container.innerHTML = `
+        <div class="space-y-6 pt-2">
+          <p class="text-xs font-bold text-sky-700">Показано результати для: ${selectedClass === 'ALL' ? '🌍 Усі спільноти разом' : selectedClass} (Усього відповідей: ${responses.length})</p>
+
+          <div class="space-y-3">
+            <h4 class="font-bold text-slate-700 text-xs uppercase">❤️ Рейтинг фотографій:</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              ${PHOTOS_DATA.map(p => `
+                <div class="border rounded-xl p-2 bg-slate-50 text-xs text-center space-y-1">
+                  <img src="${p.image}" class="w-full h-20 object-cover rounded-lg" alt="">
+                  <p class="font-medium text-slate-700 truncate">${p.title}</p>
+                  <p class="font-bold text-rose-500 text-sm">❤️ ${photoCounts[p.id] || 0}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="space-y-3 pt-4 border-t">
+            <h4 class="font-bold text-slate-700 text-xs uppercase">💬 Текстові відповіді (${selectedClass === 'ALL' ? 'усі спільноти' : selectedClass}):</h4>
+            <div class="space-y-2 max-h-60 overflow-y-auto">
+              ${responses.length === 0 ? '<p class="text-xs text-slate-400">Поки немає відповідей.</p>' : ''}
+              ${responses.map(r => `
+                <div class="p-3 bg-slate-50 rounded-xl text-xs space-y-1 border">
+                  <p class="font-bold text-slate-800">${r.first_name} ${r.last_name} <span class="font-semibold text-sky-600">[${r.class_name}]</span> <span class="font-normal text-slate-500">(${r.kherson_connection})</span></p>${r.personal_association ? `<p class="text-slate-600"><strong>«Херсон — це…»:</strong> ${r.personal_association}</p>` : ''}
+                  ${r.own_place ? `<p class="text-slate-600"><strong>Власне місце:</strong> ${r.own_place}</p>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // --- LIGHTBOX CONTROL ---
+    function openLightbox(src, title, author) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox-title').innerText = title;
+      document.getElementById('lightbox-author').innerText = `Фото: ${author} / Google Maps`;
+      document.getElementById('lightbox').classList.remove('hidden');
+      document.getElementById('lightbox').classList.add('flex');
+    }
+
+    function closeLightbox(e) {
+      if (e.target.id === 'lightbox') closeLightboxDirect();
+    }
+
+    function closeLightboxDirect() {
+      document.getElementById('lightbox').classList.add('hidden');
+      document.getElementById('lightbox').classList.remove('flex');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLightboxDirect();
+    });
+
+    // INIT APP ON LOAD
+    if (currentStep > 0 && currentStep <= 3) {
+      renderStep(currentStep);
+    } else if (currentStep === 4) {
+      renderThankYou();
+    } else {
+      renderWelcome();
+    }
+  </script>
+</body>
+</html>
